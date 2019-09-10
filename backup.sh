@@ -3,8 +3,8 @@
 ## redis backup script
 ## usage
 ## redis-backup.sh port backup.dir
-backup_to=${1:-"yesterday"}
-redis_home=${2:-"/psr/redis_cluster"}
+redis_home=${1:-"/home/liuhq/bin/redis_cluster"}
+backup_to=${2:-"yesterday"}
 key_back_count=${3:-3}
 AOF="no"
 
@@ -30,28 +30,32 @@ test -d $backup_dir || {
   echo "Create backup directory $backup_dir" && mkdir -p $backup_dir
 }
 
-# backup slave
-all_slave_addrs=`$redis_home/bin/redis-cli -u redis://$first_host -c cluster nodes | grep slave | grep $self_host | awk '{print $2}' | awk -F "@" '{print $1}'`
-if [ -z "$all_slave_addrs" ]; then
-  echo "No Slave"; 
-  echo "End backup $(date +'%Y-%m-%d %k:%M:%S')"
-  exit 0
-fi
+# get backup instance
+get_cluster_nodes="$redis_home/bin/redis-cli -u redis://$first_host -c cluster nodes"
 
-echo "start backup slave !!!"
+all_addrs=`$get_cluster_nodes | grep -v fail | grep slave | grep $self_host | awk '{print $2}' | awk -F "@" '{print $1}'`
+all_masters=$($get_cluster_nodes | grep -v fail | grep master | grep $self_host | awk -F "@" '{print $1}' | awk '{print $1"@"$2}' )
+for id_ip in $all_masters; do 
+  id=${id_ip%@*}
+  ip_port=${id_ip#*@}
+  find=$($get_cluster_nodes | grep -v fail | grep slave | grep $id)
+  if [ "$find" == "" ];then
+    all_addrs+=" $ip_port"
+  fi
+done
+all_addrs=$(echo $all_addrs)
+
+
+echo "start backup $all_addrs !!!"
 conf="$redis_home/data/redis-cluster-nodes-*.conf"
 cp $conf $backup_dir
 
-for addr in $all_slave_addrs; do
+for addr in $all_addrs; do
   port=${addr#*:}
   cli="$redis_home/bin/redis-cli -u redis://$addr -c"
 
   rdb="$redis_home/data/redis_dump_$port.rdb"
   aof="$redis_home/data/appendonly_$port.aof"
-
-  test -f $rdb || test -f $conf ||{
-    echo "[$port] No RDB Found" ; continue
-  }
 
   # perform a bgsave before copy
   echo bgsave | $cli

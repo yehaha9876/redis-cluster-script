@@ -1,12 +1,12 @@
 #!/bin/sh
-redis_home="/psr/redis_cluster"
-all_servers=`cat $redis_home/script/hosts.conf`
+redis_home=$REDIS_HOME
+all_servers=$CLUSTER_HOSTS
 backup_dir=$(date +'%Y-%m-%d_%H-%M-%S')
 
 for host in $all_servers; do 
 {
   echo "server on $host"
-  ssh $host "$redis_home/script/include/backup.sh $backup_dir"
+  ssh $host "bash $redis_home/script/backup.sh $redis_home $backup_dir"
 }&
 done
 wait

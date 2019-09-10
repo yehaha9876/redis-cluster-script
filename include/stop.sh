@@ -1,8 +1,10 @@
 #!/bin/sh
 method=$2
 role=$1
-redis_home="/psr/redis_cluster"
-all_servers=`cat $redis_home/script/hosts.conf`
+redis_home=$REDIS_HOME
+all_servers=$CLUSTER_HOSTS
+
+source $redis_home/script/include/helps.sh
 
 if [ "$method" == "" ] || [ "$role" == "" ]; then
   echo "请输入参数1停止种类: master 或 salve"
@@ -15,6 +17,8 @@ if [ $role = "master" ]; then
   type="master"
 elif [ $role = "slave" ]; then
   type="slave"
+elif [ $role = "all" ]; then
+  type=""
 else
   echo "请输入参数1停止种类: master 或 salve"
   exit
@@ -34,25 +38,20 @@ else
   exit
 fi
 
-alive_instans=$(for host in $all_servers; do
-  ssh $host "ps -fU \$(whoami) | grep redis-server | grep cluster | grep -v 'ps -f' | awk '{print \$9}'"
-done | head -n 1)
-
-if [ "$alive_instans" == "" ]; then
-   echo "no instans !!!"
-   exit
+ip_ports=""
+if [ "$method" == "3" ] && [ $role = "all" ]; then
+  ip_ports=$(all_host_ports)
+else
+  ip_ports=$(get_cluster_nodes | grep "$type" |sort -k 2 | awk '{print $2}' | awk -F "@" '{print $1}')
 fi
-echo $alive_instans
 
-ip_ports=$($redis_home/bin/redis-cli -u redis://$alive_instans -c cluster nodes | grep $type |sort -k 2 | awk '{print $2}' | awk -F "@" '{print $1}')
 
 if [ $method -eq 1 ] || [ $method -eq 2 ]; then
-
   # hosts
-  echo "shutdown $type !"
+  echo "shutdown $role !"
   for ip_port in $ip_ports; do 
   {
- 	echo "stop redis server on $ip_port"
+ 	  echo "stop redis server on $ip_port"
   	$redis_home/bin/redis-cli -u redis://$ip_port $cmd
   }&
   done
@@ -65,11 +64,8 @@ else
       continue
     fi
 
-    redis_pid=$(ssh $ip "ps -fU \$(whoami) | grep redis-server | grep cluster | grep -v 'ps -f' | grep \"$port\" | awk '{print \$2}'")
-    if [ "$redis_pid" != "" ]; then
-      echo "server pid: $redis_pid on $ip to kill"
-      ssh $ip "kill -9 $redis_pid"
-    fi
+    echo "kill $ip_port"
+    ssh $ip "pgrep redis-server -a | grep ':$port' |awk '{print \$1}' | xargs kill"
   done
 fi
 echo "stop done"

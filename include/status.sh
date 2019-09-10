@@ -1,8 +1,4 @@
 #!/bin/sh
-redis_home=${1:-"/psr/redis_cluster"}
-all_servers=`cat $redis_home/script/hosts.conf`
+source $REDIS_HOME/script/include/helps.sh
 
-for host in $all_servers; do 
-  echo "server on $host"
-  ssh $host "ps -fU $(whoami) | grep redis-server | grep cluster | grep -v 'ps -f'"
-done
+get_alive_process | sort -k 3

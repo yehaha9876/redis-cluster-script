@@ -1,50 +1,47 @@
 #!/bin/bash
-redis_home="/psr/redis_cluster"
-all_server=`cat $redis_home/script/hosts.conf`
-cluster_count=0
-if [ "$1" != "master" ] && [ "$1" != "slave" ] ; then
-  echo "输入启动master还是slave"
+redis_home=$REDIS_HOME
+all_server=$CLUSTER_HOSTS
+
+source $redis_home/script/include/helps.sh
+
+if [ "$1" != "master" ] && [ "$1" != "all" ] ; then
+  echo "输入启动master或者all"
   exit
 fi
 
-if [ "$1" = "master" ]; then
-  echo "begin start master !!!!!"
-  for host in $all_server; do
-  #ssh $host "cd /psr/redis_cluster/conf; sed -i \"s@^cluster-node-timeout .*@cluster-node-timeout 800000@\" *.conf"
 
-  ssh $host > /dev/null 2>&1 << eeooff
-cd /psr/redis_cluster/bin;
-/psr/redis_cluster/bin/redis-server /psr/redis_cluster/conf/redis-16380.conf 1>> /psr/redis_cluster/log/redis_server_16380.log 2>&1;
-/psr/redis_cluster/bin/redis-server /psr/redis_cluster/conf/redis-16381.conf 1>> /psr/redis_cluster/log/redis_server_16381.log 2>&1;
-eeooff
-  cluster_count=$(($cluster_count+2))
-  done
-elif [ "$1" = "slave" ]; then
-  echo "begin start salve !!!!!"
-  for host in $all_server; do
-  #ssh $host "cd /psr/redis_cluster/conf; sed -i \"s@^cluster-node-timeout .*@cluster-node-timeout 800000@\" *.conf"
-
-ssh $host > /dev/null 2>&1 << eeooff
-cd /psr/redis_cluster/bin;
-/psr/redis_cluster/bin/redis-server /psr/redis_cluster/conf/redis-17380.conf 1>> /psr/redis_cluster/log/redis_server_17380.log 2>&1;
-/psr/redis_cluster/bin/redis-server /psr/redis_cluster/conf/redis-17381.conf 1>> /psr/redis_cluster/log/redis_server_17381.log 2>&1;
-eeooff
-  cluster_count=$(($cluster_count+2))
-  done
+# get start ip hosts
+start_ip_ports=""
+if [ "$1" == "all" ]; then
+  start_ip_ports=$(get_not_alive_ip_port)
+else
+  check_old_file=$(ls $redis_home/data/redis-cluster-nodes-*.conf | wc -l)
+  if [ $check_old_file -eq 0 ]; then
+    start_ip_ports=$(all_host_ports $1)
+  else
+    start_ip_ports=$(get_cluster_nodes_from_config | grep $1 | grep -v fail | awk '{print $2}' | awk -F "@" '{print $1}')
+  fi
 fi
+start_ip_ports=$(echo $start_ip_ports)
 
-#cd /psr/redis_cluster/conf; sed -i \"s@^cluster-node-timeout 500000@cluster-node-timeout 5000@\" *.conf
-port=1638
-if [ "$1" = "slave" ]; then
-  port=1738
-fi
+# start redis server
+echo "begin start $1: $start_ip_ports !!!!!"
+start_count=0
+for ip_port in $start_ip_ports; do
+  host=${ip_port%:*}
+  port=${ip_port#*:}
+  ssh $host "$redis_home/bin/redis-server $redis_home/conf/redis-$port.conf 1>> $redis_home/log/redis_server_$port.log 2>&1;"
+  start_count=$(($start_count+1))
+done
+
 # 实际启动个数
-real_count=`for host in $all_server; do ssh $host "ps -fU $(whoami) | grep redis-server | grep cluster | grep '$port' | grep -v 'ps -f'"; done | wc -l`
+start_ip_ports_reg=${start_ip_ports// /\\|}
+real_count=$(get_alive_process | grep "$start_ip_ports_reg" | wc -l)
 
-echo "start instance count $cluster_count"
+echo "start instance count $start_count"
 echo "real started instance count $real_count"
 
-if [ $cluster_count -eq $real_count ]; then
+if [ $start_count -eq $real_count ]; then
   echo 'start success'
   exit 0
 else
