@@ -2,7 +2,6 @@
 method=$2
 role=$1
 redis_home=$REDIS_HOME
-all_servers=$CLUSTER_HOSTS
 
 source $redis_home/script/include/helps.sh
 
@@ -65,7 +64,7 @@ else
     fi
 
     echo "kill $ip_port"
-    ssh $ip "pgrep redis-server -a | grep ':$port' |awk '{print \$1}' | xargs kill"
+    ssh $ip "ps -ef | grep redis-server | grep ':$port' |awk '{print \$2}' | xargs kill"
   done
 fi
 echo "stop done"

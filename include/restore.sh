@@ -1,7 +1,5 @@
 #!/bin/bash
 redis_home=$REDIS_HOME
-all_server=$CLUSTER_HOSTS
-
 source $redis_home/script/include/helps.sh
 
 if [ "$1" == "" ]; then
@@ -19,6 +17,8 @@ test -d $backup_dir || {
 
 # check rdb 是否全
 echo "check rdb 文件个数"
+$all_server=$(all_hosts)
+
 rdb_count=$(for host in $all_server; do
   ls $backup_dir/redis_dump_*.rdb
 done | wc -l)

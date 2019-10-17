@@ -1,7 +1,9 @@
 #!/bin/sh
 redis_home=$REDIS_HOME
-all_servers=$CLUSTER_HOSTS
 backup_dir=$(date +'%Y-%m-%d_%H-%M-%S')
+
+source $redis_home/script/include/helps.sh
+all_servers=$(all_hosts)
 
 for host in $all_servers; do 
 {

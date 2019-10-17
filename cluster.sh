@@ -7,7 +7,7 @@ elif [ "$1" == "stop" ]; then
   bash $REDIS_HOME/script/include/stop.sh $2 $3
 elif [ "$1" == "status" ]; then
   bash $REDIS_HOME/script/include/status.sh
-elif [ "$1" == "backup" ]; then
+elif [ "$1" == "backup-all" ]; then
   bash $REDIS_HOME/script/include/backup-all.sh
 elif [ "$1" == "restore" ]; then
   bash $REDIS_HOME/script/include/restore.sh $2
@@ -23,7 +23,7 @@ cluster.sh stop (master|slave) stop_type
 cluster.sh status
 # 查看集群的进程状态
 
-cluster.sh backup
+cluster.sh backup-all
 # 备份当前集群数据
 
 cluster.sh restore backup_dir

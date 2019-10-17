@@ -1,6 +1,5 @@
 #!/bin/bash
 redis_home=$REDIS_HOME
-all_server=$CLUSTER_HOSTS
 
 source $redis_home/script/include/helps.sh
 
@@ -23,6 +22,11 @@ else
   fi
 fi
 start_ip_ports=$(echo $start_ip_ports)
+
+if [ "$start_ip_ports" == "" ]; then
+  echo "No node need to start !!!!!"
+  exit 0
+fi
 
 # start redis server
 echo "begin start $1: $start_ip_ports !!!!!"
